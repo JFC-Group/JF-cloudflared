@@ -1,0 +1,79 @@
+name: Build cloudflared for JF MIPSel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:  
+  build-cloudflared:
+    runs-on: ubuntu-latest
+    name: Cross-compile cloudflared for mipsel-uclibc
+
+    steps:
+    - name: Checkout cloudflared repo
+      uses: actions/checkout@v4
+      with:
+        repository: cloudflare/cloudflared
+        path: cloudflared
+        fetch-depth: 0
+    
+    - name: Checkout cf-go repo
+      uses: actions/checkout@v4
+      with:
+        repository: cloudflare/go
+        path: go
+
+    - name: Download and extract MIPSel toolchain
+      run: |
+        wget https://github.com/JFC-Group/JF-Buildroot/releases/download/2015.08.1/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1.tar
+        tar -xf mipsel-buildroot-linux-uclibc-toolchain-2015.08.1.tar
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: "./go/src/go.mod"
+    
+    - name: Build cf-go
+      working-directory: go/src
+      run: ./make.bash
+
+    - name: Set environment variables
+      run: |
+        echo "$(pwd)/go/bin" >> $GITHUB_PATH
+        echo "$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/lib" >> $GITHUB_ENV
+        echo "CC=$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/bin/mipsel-buildroot-linux-uclibc-gcc" >> $GITHUB_ENV
+        echo "GOARCH=mipsle" >> $GITHUB_ENV
+        echo "GOOS=linux" >> $GITHUB_ENV
+
+    - name: Build cloudflared
+      working-directory: cloudflared
+      run: |
+        go build -o cloudflared ./cmd/cloudflared
+
+    - name: Release name
+      id: release_name
+      working-directory: cloudflared
+      run: |
+        echo "release_name=$(git describe --tags)" >> "$GITHUB_OUTPUT"
+
+    - name: Generate tag name
+      id: tag
+      run: |
+        TAG_NAME="release-$(date +%Y%m%d-%H%M%S)"
+        echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+    - name: Create Release and Upload Binaries
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          cloudflared/cloudflared
+        name: ${{ steps.release_name.outputs.release_name }}
+        tag_name: ${{ steps.tag.outputs.tag_name }}
+        make_latest: true
+        draft: false
+        prerelease: ${{ github.ref_name != 'main' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
