@@ -18,30 +18,14 @@ jobs:
         repository: cloudflare/cloudflared
         path: cloudflared
         fetch-depth: 0
-    
-    - name: Checkout cf-go repo
-      uses: actions/checkout@v4
-      with:
-        repository: cloudflare/go
-        path: go
 
     - name: Download and extract MIPSel toolchain
       run: |
         wget https://github.com/JFC-Group/JF-Buildroot/releases/download/2015.08.1/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1.tar
         tar -xf mipsel-buildroot-linux-uclibc-toolchain-2015.08.1.tar
-    
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: "./go/src/go.mod"
-    
-    - name: Build cf-go
-      working-directory: go/src
-      run: ./make.bash
 
     - name: Set environment variables
       run: |
-        echo "$(pwd)/go/bin" >> $GITHUB_PATH
         echo "$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/bin" >> $GITHUB_PATH
         echo "LD_LIBRARY_PATH=$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/lib" >> $GITHUB_ENV
         echo "CC=$(pwd)/mipsel-buildroot-linux-uclibc-toolchain-2015.08.1/usr/bin/mipsel-buildroot-linux-uclibc-gcc" >> $GITHUB_ENV
