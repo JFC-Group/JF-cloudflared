@@ -35,7 +35,7 @@ jobs:
     - name: Build cloudflared
       working-directory: cloudflared
       run: |
-        go build -o cloudflared ./cmd/cloudflared
+        go build -trimpath -ldflags="-w -s" -o cloudflared ./cmd/cloudflared
 
     - name: Release name
       id: release_name
